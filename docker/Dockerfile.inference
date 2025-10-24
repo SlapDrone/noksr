@@ -1,0 +1,100 @@
+# syntax=docker/dockerfile:1.5
+
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04 AS nksr-builder
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        ninja-build \
+        pkg-config \
+        libgl1 \
+        libglib2.0-0 \
+        libx11-6 \
+        libxext6 \
+        libxrender1 \
+        libsm6 \
+        wget \
+        curl \
+        ca-certificates \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-venv \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/nksr-build
+
+RUN pip install --upgrade pip==23.2.1 setuptools==68.2.2 wheel==0.41.2 \
+    && pip install "numpy<2" pybind11 "filelock<3.13" "sympy<1.12" "networkx<3.2" "typing-extensions<4.8" gitpython
+
+RUN pip install torch==2.0.0+cu118 torchvision==0.15.0+cu118 torchaudio==2.0.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118 --no-deps
+
+RUN git clone --depth 1 --branch public https://github.com/nv-tlabs/nksr.git /tmp/nksr-src
+
+RUN pip wheel --no-build-isolation /tmp/nksr-src/package -w /tmp/nksr-wheels
+
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        ninja-build \
+        pkg-config \
+        libgl1 \
+        libglib2.0-0 \
+        libx11-6 \
+        libxext6 \
+        libxrender1 \
+        libsm6 \
+        wget \
+        curl \
+        ca-certificates \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-venv \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+COPY docker/requirements.inference.txt /tmp/requirements.inference.txt
+COPY --from=nksr-builder /tmp/nksr-wheels /tmp/nksr-wheels
+
+RUN pip install --upgrade pip==23.2.1 setuptools==68.2.2 wheel==0.41.2 \
+    && pip install "numpy<2" "filelock<3.13" "sympy<1.12" "networkx<3.2" "typing-extensions<4.8" \
+    && pip install torch==2.0.0+cu118 torchvision==0.15.0+cu118 torchaudio==2.0.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118 --no-deps \
+    && pip install -r /tmp/requirements.inference.txt \
+    && pip install torch-scatter -f https://data.pyg.org/whl/torch-2.0.0+cu118.html \
+    && pip install spconv-cu118 \
+    && pip install flash-attn==2.6.3 --no-build-isolation \
+    && pip install python-pycg[full] -f https://pycg.s3.ap-northeast-1.amazonaws.com/packages/index.html \
+    && pip install pytorch3d==0.7.3 -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py310_cu118_pyt200/download.html \
+    && pip install /tmp/nksr-wheels/nksr-*.whl
+
+COPY . /workspace
+
+ENV PYTHONPATH=/workspace
+
+RUN python - <<'PY'
+import torch
+import flash_attn
+
+print("Torch:", torch.__version__)
+print("CUDA available:", torch.cuda.is_available())
+print("FlashAttn:", flash_attn.__version__)
+PY
+
+CMD ["python", "eval.py", "--help"]

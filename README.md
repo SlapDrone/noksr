@@ -87,6 +87,10 @@ pip install nksr -f https://nksr.huangjh.tech/whl/torch-2.0.0+cu118.html
 
 The detailed installation of nksr is described in the [NKSR](https://github.com/nv-tlabs/nksr).
 
+### Docker-based inference
+
+If you prefer to run evaluation inside a container, a multi-stage Dockerfile that compiles NKSR from source (CUDA 11.8 / PyTorch 2.0.0) is provided under `docker/Dockerfile.inference`. See [docs/docker_inference.md](docs/docker_inference.md) for build instructions and a GPU smoke test.
+
 ## Reproducing results from the paper
 
 ### Data Preparation
