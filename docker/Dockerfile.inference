@@ -71,12 +71,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /workspace
 
 COPY docker/requirements.inference.txt /tmp/requirements.inference.txt
+COPY docker/requirements.inference.extra /tmp/requirements.inference.extra
 COPY --from=nksr-builder /tmp/nksr-wheels /tmp/nksr-wheels
 
 RUN pip install --upgrade pip==23.2.1 setuptools==68.2.2 wheel==0.41.2 \
     && pip install "numpy<2" "filelock<3.13" "sympy<1.12" "networkx<3.2" "typing-extensions<4.8" \
     && pip install torch==2.0.0+cu118 torchvision==0.15.0+cu118 torchaudio==2.0.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118 --no-deps \
     && pip install -r /tmp/requirements.inference.txt \
+    && pip install -r /tmp/requirements.inference.extra \
     && pip install torch-scatter -f https://data.pyg.org/whl/torch-2.0.0+cu118.html \
     && pip install spconv-cu118 \
     && pip install flash-attn==2.6.3 --no-build-isolation \
