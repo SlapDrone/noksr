@@ -99,4 +99,4 @@ print("CUDA available:", torch.cuda.is_available())
 print("FlashAttn:", flash_attn.__version__)
 PY
 
-CMD ["python", "eval.py", "--help"]
+CMD ["python", "scripts/container_help.py"]

@@ -143,6 +143,50 @@ Tips:
 
 ---
 
-With these presets and commands you can feed virtually any point cloud into NoKSR, evaluate SDFs and
-their spatial derivatives, and iterate on downstream pipelines without leaving the Docker
-environment.
+---
+
+## 7. Publishing To GitHub Container Registry (GHCR)
+
+1. Authenticate once (PAT must have `write:packages` scope):
+
+   ```bash
+   echo "${GHCR_PAT}" | docker login ghcr.io -u <your-github-username> --password-stdin
+   ```
+
+2. Build and tag the image:
+
+   ```bash
+   docker build -f docker/Dockerfile.inference -t ghcr.io/<owner>/noksr-inference:latest .
+   ```
+
+3. Push:
+
+   ```bash
+   docker push ghcr.io/<owner>/noksr-inference:latest
+   ```
+
+For repeatable automation, a GitHub Actions workflow (`.github/workflows/publish-inference-image.yml`)
+is included. Configure it by setting `IMAGE_NAME` (defaults to `noksr-inference`) and enabling the
+workflow—`secrets.GITHUB_TOKEN` already has permission to publish to GHCR for the current repository.
+
+---
+
+## 8. Container Help Command
+
+Running the container without overriding the command prints a concise quick-start guide:
+
+```bash
+docker run --rm noksr-inference
+```
+
+To display the full markdown documentation from inside the image, run:
+
+```bash
+docker run --rm noksr-inference python scripts/container_help.py --full
+```
+
+---
+
+With these presets and commands you can feed virtually any point cloud into NoKSR, evaluate SDFs
+and their spatial derivatives, and iterate on downstream pipelines without leaving the Docker
+environment—or publish the toolchain to GHCR for downstream consumers.
